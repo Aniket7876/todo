@@ -10,6 +10,8 @@ A beautiful task management application built with Next.js 14, TypeScript, and T
 - 🔍 **Task Details** - View comprehensive information about each task
 - 🎨 **Priority Levels** - Categorize tasks with Low, Medium, and High priorities
 - 📅 **Due Dates** - Set optional due dates for tasks
+- 🗄️ **Persistent Storage** - MongoDB-backed API keeps tasks in sync across sessions
+- 🧲 **Drag & Drop** - Move tasks between stages with smooth drag interactions
 - 🎯 **Responsive Design** - Works beautifully on all screen sizes
 
 ## Getting Started
@@ -31,7 +33,11 @@ yarn install
 pnpm install
 ```
 
-2. Run the development server:
+2. Configure environment variables:
+
+	- Copy `.env.example` to `.env.local` and update `MONGODB_URI` with your MongoDB connection string.
+
+3. Run the development server:
 
 ```bash
 npm run dev
@@ -41,7 +47,7 @@ yarn dev
 pnpm dev
 ```
 
-3. Open [http://localhost:3000](http://localhost:3000) in your browser to see the app.
+4. Open [http://localhost:3000](http://localhost:3000) in your browser to see the app.
 
 ## Tech Stack
 

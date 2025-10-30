@@ -32,11 +32,22 @@ const priorityStyles: Record<Task['priority'], {
 interface TaskCardProps {
   task: Task;
   onEdit: (task: Task) => void;
-  onDelete: (taskId: string) => void;
+  onDelete: (taskId: string) => Promise<void> | void;
   onViewDetails: (task: Task) => void;
+  onDragStart: (taskId: string) => void;
+  onDragEnd: () => void;
+  isDragging: boolean;
 }
 
-export default function TaskCard({ task, onEdit, onDelete, onViewDetails }: TaskCardProps) {
+export default function TaskCard({
+  task,
+  onEdit,
+  onDelete,
+  onViewDetails,
+  onDragStart,
+  onDragEnd,
+  isDragging,
+}: TaskCardProps) {
   const priority = priorityStyles[task.priority];
   const createdAt = new Date(task.createdAt);
   const updatedAt = new Date(task.updatedAt);
@@ -44,8 +55,19 @@ export default function TaskCard({ task, onEdit, onDelete, onViewDetails }: Task
 
   return (
     <div
-      className="group relative cursor-pointer overflow-hidden rounded-[24px] border border-white/12 bg-white/[0.05] p-5 shadow-[0_28px_60px_-36px_rgba(15,23,42,0.95)] transition-all duration-500 hover:-translate-y-1 hover:border-white/25 hover:shadow-[0_30px_70px_-38px_rgba(114,109,255,0.75)]"
+      className={`group relative cursor-grab overflow-hidden rounded-[24px] border border-white/12 bg-white/[0.05] p-5 shadow-[0_28px_60px_-36px_rgba(15,23,42,0.95)] transition-all duration-500 hover:-translate-y-1 hover:border-white/25 hover:shadow-[0_30px_70px_-38px_rgba(114,109,255,0.75)] ${isDragging ? 'cursor-grabbing border-white/30 opacity-60' : ''}`}
       onClick={() => onViewDetails(task)}
+      draggable
+      onDragStart={(event) => {
+        event.stopPropagation();
+        event.dataTransfer.setData('text/plain', task.id);
+        event.dataTransfer.effectAllowed = 'move';
+        onDragStart(task.id);
+      }}
+      onDragEnd={(event) => {
+        event.stopPropagation();
+        onDragEnd();
+      }}
     >
       <span className="pointer-events-none absolute inset-0 opacity-60 transition-opacity duration-500 group-hover:opacity-80" style={{ background: priority.gradient }} />
       <span className="pointer-events-none absolute -inset-px rounded-[24px] border border-white/10 opacity-20 transition-opacity duration-500 group-hover:opacity-40" />

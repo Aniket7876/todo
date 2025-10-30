@@ -1,6 +1,6 @@
 'use client';
 
-import { ReactNode, useMemo, useState } from 'react';
+import { ReactNode, useEffect, useMemo, useState } from 'react';
 import { Activity, CheckCircle2, Flame, PlusCircle, Sparkles } from 'lucide-react';
 import { Column, Task, TaskStatus } from '@/types/task';
 import KanbanColumn from '@/components/KanbanColumn';
@@ -19,22 +19,38 @@ type StatCard = {
 };
 
 export default function Home() {
-  const [tasks, setTasks] = useState<Task[]>([
-    {
-      id: '1',
-      title: 'Welcome to your Kanban board!',
-      description: 'This is a sample task. Click on it to view details, or use the edit button to modify it.',
-      status: 'todo',
-      priority: 'medium',
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    },
-  ]);
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [defaultStatus, setDefaultStatus] = useState<TaskStatus>('todo');
+  const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
+  const [dragOverStatus, setDragOverStatus] = useState<TaskStatus | null>(null);
+
+  useEffect(() => {
+    const fetchTasks = async () => {
+      try {
+        const response = await fetch('/api/tasks', { cache: 'no-store' });
+        if (!response.ok) {
+          throw new Error('Failed to fetch tasks');
+        }
+
+        const data: Task[] = await response.json();
+        setTasks(data);
+        setError(null);
+      } catch (err) {
+        console.error('Error loading tasks', err);
+        setError('We could not load your tasks. Please refresh or try again later.');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchTasks();
+  }, []);
 
   const columns = useMemo<Column[]>(() => (
     [
@@ -90,8 +106,25 @@ export default function Home() {
     setIsModalOpen(true);
   };
 
-  const handleDeleteTask = (taskId: string) => {
-    setTasks(tasks.filter(t => t.id !== taskId));
+  const handleDeleteTask = async (taskId: string) => {
+    const previousTasks = tasks;
+    setTasks((current) => current.filter((t) => t.id !== taskId));
+
+    try {
+      const response = await fetch(`/api/tasks/${taskId}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to delete task');
+      }
+
+      setError(null);
+    } catch (err) {
+      console.error('Error deleting task', err);
+      setTasks(previousTasks);
+      setError('We could not delete the task. Please try again.');
+    }
   };
 
   const handleViewDetails = (task: Task) => {
@@ -99,27 +132,131 @@ export default function Home() {
     setIsDetailsModalOpen(true);
   };
 
-  const handleSaveTask = (taskData: Partial<Task>) => {
-    if (selectedTask) {
-      // Update existing task
-      setTasks(tasks.map(t => 
-        t.id === selectedTask.id 
-          ? { ...t, ...taskData, updatedAt: new Date() }
-          : t
-      ));
-    } else {
-      // Create new task
-      const newTask: Task = {
-        id: Date.now().toString(),
-        title: taskData.title!,
-        description: taskData.description!,
-        status: taskData.status || defaultStatus,
-        priority: taskData.priority || 'medium',
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        dueDate: taskData.dueDate,
-      };
-      setTasks([...tasks, newTask]);
+  const handleDragStart = (taskId: string) => {
+    setDraggedTaskId(taskId);
+  };
+
+  const handleDragEnd = () => {
+    setDraggedTaskId(null);
+    setDragOverStatus(null);
+  };
+
+  const handleDragEnter = (status: TaskStatus) => {
+    if (!draggedTaskId) return;
+    setDragOverStatus(status);
+  };
+
+  const handleDragLeave = (status: TaskStatus) => {
+    if (dragOverStatus === status) {
+      setDragOverStatus(null);
+    }
+  };
+
+  const handleDropTask = async (status: TaskStatus) => {
+    if (!draggedTaskId) {
+      return;
+    }
+
+    const task = tasks.find((item) => item.id === draggedTaskId);
+    if (!task) {
+      handleDragEnd();
+      return;
+    }
+
+    if (task.status === status) {
+      handleDragEnd();
+      return;
+    }
+
+    const previousTasks = tasks;
+    const optimisticTask: Task = {
+      ...task,
+      status,
+      updatedAt: new Date().toISOString(),
+    };
+
+    setTasks((current) => current.map((item) => (item.id === task.id ? optimisticTask : item)));
+    handleDragEnd();
+
+    try {
+      const response = await fetch(`/api/tasks/${task.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          title: task.title,
+          description: task.description,
+          priority: task.priority,
+          status,
+          dueDate: task.dueDate ?? null,
+        }),
+      });
+
+      if (!response.ok) {
+        const message = await response.text();
+        throw new Error(message || 'Failed to move task');
+      }
+
+      const updatedTask: Task = await response.json();
+      setTasks((current) => current.map((item) => (item.id === updatedTask.id ? updatedTask : item)));
+      setError(null);
+    } catch (err) {
+      console.error('Error moving task', err);
+      setTasks(previousTasks);
+      setError('We could not move the task. Please try again.');
+    }
+  };
+
+  const handleSaveTask = async (taskData: Partial<Task>) => {
+    const payload = {
+      ...taskData,
+      status: taskData.status ?? defaultStatus,
+    };
+    const { id: _unused, ...bodyPayload } = payload;
+
+    try {
+      if (selectedTask) {
+        const response = await fetch(`/api/tasks/${selectedTask.id}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(bodyPayload),
+        });
+
+        if (!response.ok) {
+          const message = await response.text();
+          throw new Error(message || 'Failed to update task');
+        }
+
+        const updatedTask: Task = await response.json();
+        setTasks((current) => current.map((taskItem) => (
+          taskItem.id === updatedTask.id ? updatedTask : taskItem
+        )));
+      } else {
+        const response = await fetch('/api/tasks', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(bodyPayload),
+        });
+
+        if (!response.ok) {
+          const message = await response.text();
+          throw new Error(message || 'Failed to create task');
+        }
+
+        const newTask: Task = await response.json();
+        setTasks((current) => [...current, newTask]);
+      }
+
+      setError(null);
+    } catch (err) {
+      console.error('Error saving task', err);
+      setError('We could not save your changes. Please try again.');
+      throw err;
     }
   };
 
@@ -166,6 +303,12 @@ export default function Home() {
           </div>
         </header>
 
+        {error && (
+          <div className="relative z-10 rounded-3xl border border-rose-500/30 bg-rose-500/15 px-5 py-3 text-sm text-rose-100 shadow-[0_25px_45px_-35px_rgba(244,63,94,0.55)]">
+            {error}
+          </div>
+        )}
+
         <section className="relative z-10 grid gap-4 md:auto-rows-fr md:grid-cols-2 xl:grid-cols-3">
           {stats.map((stat) => (
             <div key={stat.id} className="group relative flex h-full flex-col justify-between overflow-hidden rounded-[26px] border border-white/10 bg-white/5 p-6 shadow-[0_24px_40px_-28px_rgba(15,23,42,0.9)] backdrop-blur-xl">
@@ -194,18 +337,31 @@ export default function Home() {
         </section>
 
         <div className="relative z-10 flex snap-x gap-6 overflow-x-auto pb-8 pt-2 items-stretch lg:auto-rows-fr lg:grid lg:snap-none lg:grid-cols-3 lg:gap-8 lg:overflow-visible lg:pb-12">
-          {columns.map((column) => (
-            <KanbanColumn
-              key={column.id}
-              title={column.title}
-              status={column.id}
-              tasks={column.tasks}
-              onAddTask={handleAddTask}
-              onEditTask={handleEditTask}
-              onDeleteTask={handleDeleteTask}
-              onViewDetails={handleViewDetails}
-            />
-          ))}
+          {isLoading ? (
+            <div className="flex w-full items-center justify-center rounded-[30px] border border-white/10 bg-white/5 px-6 py-12 text-sm text-white/65">
+              Loading tasks...
+            </div>
+          ) : (
+            columns.map((column) => (
+              <KanbanColumn
+                key={column.id}
+                title={column.title}
+                status={column.id}
+                tasks={column.tasks}
+                onAddTask={handleAddTask}
+                onEditTask={handleEditTask}
+                onDeleteTask={handleDeleteTask}
+                onViewDetails={handleViewDetails}
+                onDragStartTask={handleDragStart}
+                onDragEndTask={handleDragEnd}
+                onDropTask={() => handleDropTask(column.id)}
+                onDragEnterZone={() => handleDragEnter(column.id)}
+                onDragLeaveZone={() => handleDragLeave(column.id)}
+                isDragOver={dragOverStatus === column.id}
+                draggedTaskId={draggedTaskId}
+              />
+            ))
+          )}
         </div>
       </div>
 

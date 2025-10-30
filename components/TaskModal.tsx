@@ -7,7 +7,7 @@ import { useState, useEffect } from 'react';
 interface TaskModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (task: Partial<Task>) => void;
+  onSave: (task: Partial<Task>) => Promise<void> | void;
   task?: Task;
   defaultStatus?: TaskStatus;
 }
@@ -41,17 +41,30 @@ export default function TaskModal({ isOpen, onClose, onSave, task, defaultStatus
     }
   }, [task, defaultStatus]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const dueDateValue = formData.dueDate
+      ? new Date(formData.dueDate).toISOString()
+      : null;
+
     const taskData: Partial<Task> = {
-      ...formData,
-      dueDate: formData.dueDate ? new Date(formData.dueDate) : undefined,
+      title: formData.title.trim(),
+      description: formData.description.trim(),
+      priority: formData.priority,
+      status: formData.status,
+      dueDate: dueDateValue,
     };
+
     if (task) {
       taskData.id = task.id;
     }
-    onSave(taskData);
-    onClose();
+
+    try {
+      await onSave(taskData);
+      onClose();
+    } catch (error) {
+      console.error('Failed to save task', error);
+    }
   };
 
   if (!isOpen) return null;

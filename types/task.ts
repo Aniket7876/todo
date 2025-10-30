@@ -6,9 +6,9 @@ export interface Task {
   description: string;
   status: TaskStatus;
   priority: 'low' | 'medium' | 'high';
-  createdAt: Date;
-  updatedAt: Date;
-  dueDate?: Date;
+  createdAt: string;
+  updatedAt: string;
+  dueDate?: string | null;
 }
 
 export interface Column {

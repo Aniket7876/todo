@@ -1,5 +1,6 @@
 'use client';
 
+import { type DragEvent } from 'react';
 import { Task, TaskStatus } from '@/types/task';
 import TaskCard from './TaskCard';
 import { CheckCircle2, Plus, Sparkles, Timer } from 'lucide-react';
@@ -44,8 +45,15 @@ interface KanbanColumnProps {
   tasks: Task[];
   onAddTask: (status: TaskStatus) => void;
   onEditTask: (task: Task) => void;
-  onDeleteTask: (taskId: string) => void;
+  onDeleteTask: (taskId: string) => Promise<void> | void;
   onViewDetails: (task: Task) => void;
+  onDragStartTask: (taskId: string) => void;
+  onDragEndTask: () => void;
+  onDropTask: () => void;
+  onDragEnterZone: () => void;
+  onDragLeaveZone: () => void;
+  isDragOver: boolean;
+  draggedTaskId: string | null;
 }
 
 export default function KanbanColumn({
@@ -56,12 +64,55 @@ export default function KanbanColumn({
   onEditTask,
   onDeleteTask,
   onViewDetails,
+  onDragStartTask,
+  onDragEndTask,
+  onDropTask,
+  onDragEnterZone,
+  onDragLeaveZone,
+  isDragOver,
+  draggedTaskId,
 }: KanbanColumnProps) {
   const theme = columnThemes[status];
   const taskCountLabel = `${tasks.length} ${tasks.length === 1 ? 'task' : 'tasks'}`;
 
+  const handleDragOver = (event: DragEvent<HTMLDivElement>) => {
+    if (!draggedTaskId) return;
+    event.preventDefault();
+    onDragEnterZone();
+  };
+
+  const handleDragEnter = (event: DragEvent<HTMLDivElement>) => {
+    if (!draggedTaskId) return;
+    event.preventDefault();
+    onDragEnterZone();
+  };
+
+  const handleDragLeave = (event: DragEvent<HTMLDivElement>) => {
+    if (!draggedTaskId) return;
+    const relatedTarget = event.relatedTarget as Node | null;
+    if (relatedTarget && event.currentTarget.contains(relatedTarget)) {
+      return;
+    }
+    onDragLeaveZone();
+  };
+
+  const handleDrop = (event: DragEvent<HTMLDivElement>) => {
+    if (!draggedTaskId) return;
+    event.preventDefault();
+    onDropTask();
+  };
+
   return (
-    <div className="group relative flex h-full min-w-[320px] flex-1 snap-start flex-col gap-5 overflow-hidden rounded-[30px] border border-white/12 bg-white/[0.04] p-6 shadow-[0_28px_50px_-38px_rgba(15,23,42,0.95)] backdrop-blur-2xl lg:min-w-0">
+    <div
+      className={`group relative flex h-full min-w-[320px] flex-1 snap-start flex-col gap-5 overflow-hidden rounded-[30px] border border-white/12 bg-white/[0.04] p-6 shadow-[0_28px_50px_-38px_rgba(15,23,42,0.95)] backdrop-blur-2xl lg:min-w-0 ${
+        isDragOver ? 'border-white/30 bg-white/[0.06]' : ''
+      }`}
+      onDragOver={handleDragOver}
+      onDragEnter={handleDragEnter}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+      aria-dropeffect={draggedTaskId ? 'move' : undefined}
+    >
       <span className="pointer-events-none absolute inset-0 opacity-60" style={{ background: theme.gradient }} />
       <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/50 to-transparent opacity-80" />
 
@@ -90,7 +141,7 @@ export default function KanbanColumn({
         </button>
       </div>
 
-  <div className="relative flex-1 space-y-4 overflow-y-auto pr-1 custom-scrollbar">
+        <div className="relative flex-1 space-y-4 overflow-y-auto pr-1 custom-scrollbar">
         {tasks.length === 0 ? (
           <div className="relative flex flex-col items-center justify-center rounded-2xl border border-dashed border-white/15 bg-white/5 px-6 py-10 text-center text-sm text-white/60">
             <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full border border-white/15 bg-white/8 backdrop-blur">
@@ -107,6 +158,9 @@ export default function KanbanColumn({
               onEdit={onEditTask}
               onDelete={onDeleteTask}
               onViewDetails={onViewDetails}
+                onDragStart={onDragStartTask}
+                onDragEnd={onDragEndTask}
+                isDragging={draggedTaskId === task.id}
             />
           ))
         )}
