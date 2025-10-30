@@ -124,7 +124,7 @@ export default function KanbanColumn({
             </div>
             <div>
               <h2 className="text-xl font-semibold text-white">{title}</h2>
-              <p className="text-xs uppercase tracking-[0.32em] text-white/40">{theme.tagline}</p>
+              <p className="text-xs uppercase tracking-[0.20em] text-white/40">{theme.tagline}</p>
             </div>
           </div>
           <div className="inline-flex w-max items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1 text-[11px] font-medium text-white/70 backdrop-blur">
