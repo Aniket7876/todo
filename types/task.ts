@@ -9,6 +9,7 @@ export interface Task {
   createdAt: string;
   updatedAt: string;
   dueDate?: string | null;
+  userId: string;
 }
 
 export interface Column {

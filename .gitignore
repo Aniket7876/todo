@@ -37,3 +37,5 @@ next-env.d.ts
 .env
 
 /.github/copilot-instructions.md
+# clerk configuration (can include secrets)
+/.clerk/

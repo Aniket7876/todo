@@ -1,10 +1,16 @@
 import { NextResponse } from 'next/server';
+import { auth } from '@clerk/nextjs/server';
 import { createTask, listTasks } from '@/lib/tasks';
 import { validateTaskPayload, ValidationError } from './validation';
 
 export async function GET() {
+  const { userId } = await auth();
+  if (!userId) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   try {
-    const tasks = await listTasks();
+    const tasks = await listTasks(userId);
     return NextResponse.json(tasks);
   } catch (error) {
     console.error('Failed to fetch tasks', error);
@@ -13,6 +19,11 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  const { userId } = await auth();
+  if (!userId) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   let payload: unknown;
 
   try {
@@ -24,7 +35,7 @@ export async function POST(request: Request) {
 
   try {
     const normalizedPayload = validateTaskPayload(payload);
-    const task = await createTask(normalizedPayload);
+    const task = await createTask(userId, normalizedPayload);
     return NextResponse.json(task, { status: 201 });
   } catch (error) {
     if (error instanceof ValidationError) {

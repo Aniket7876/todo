@@ -15,6 +15,7 @@ interface TaskDocument {
   createdAt: Date;
   updatedAt: Date;
   dueDate?: Date | null;
+  userId: string;
 }
 
 export type TaskPayload = {
@@ -25,24 +26,24 @@ export type TaskPayload = {
   dueDate?: string | null;
 };
 
-export async function listTasks(): Promise<Task[]> {
+export async function listTasks(userId: string): Promise<Task[]> {
   const collection = await getCollection<TaskDocument>(COLLECTION_NAME);
-  const documents = await collection.find({}).sort({ createdAt: 1 }).toArray();
+  const documents = await collection.find({ userId }).sort({ createdAt: 1 }).toArray();
   return documents.map(mapTaskDocumentToTask);
 }
 
-export async function findTaskById(id: string): Promise<Task | null> {
+export async function findTaskById(userId: string, id: string): Promise<Task | null> {
   const objectId = parseObjectId(id);
   if (!objectId) {
     return null;
   }
 
   const collection = await getCollection<TaskDocument>(COLLECTION_NAME);
-  const document = await collection.findOne({ _id: objectId });
+  const document = await collection.findOne({ _id: objectId, userId });
   return document ? mapTaskDocumentToTask(document) : null;
 }
 
-export async function createTask(payload: TaskPayload): Promise<Task> {
+export async function createTask(userId: string, payload: TaskPayload): Promise<Task> {
   const collection = await getCollection<TaskDocument>(COLLECTION_NAME);
   const now = new Date();
   const objectId = new ObjectId();
@@ -56,20 +57,21 @@ export async function createTask(payload: TaskPayload): Promise<Task> {
     createdAt: now,
     updatedAt: now,
     dueDate: payload.dueDate ? new Date(payload.dueDate) : null,
+    userId,
   };
 
   await collection.insertOne(document);
   return mapTaskDocumentToTask(document);
 }
 
-export async function updateTask(id: string, payload: TaskPayload): Promise<Task | null> {
+export async function updateTask(userId: string, id: string, payload: TaskPayload): Promise<Task | null> {
   const objectId = parseObjectId(id);
   if (!objectId) {
     return null;
   }
 
   const collection = await getCollection<TaskDocument>(COLLECTION_NAME);
-  const updates: Partial<Omit<TaskDocument, '_id'>> = {
+  const updates: Partial<Omit<TaskDocument, '_id' | 'userId'>> = {
     title: payload.title.trim(),
     description: payload.description.trim(),
     status: payload.status,
@@ -82,7 +84,7 @@ export async function updateTask(id: string, payload: TaskPayload): Promise<Task
   }
 
   const updatedDocument = await collection.findOneAndUpdate(
-    { _id: objectId },
+    { _id: objectId, userId },
     { $set: updates },
     { returnDocument: 'after' }
   );
@@ -90,14 +92,14 @@ export async function updateTask(id: string, payload: TaskPayload): Promise<Task
   return updatedDocument ? mapTaskDocumentToTask(updatedDocument) : null;
 }
 
-export async function deleteTask(id: string): Promise<boolean> {
+export async function deleteTask(userId: string, id: string): Promise<boolean> {
   const objectId = parseObjectId(id);
   if (!objectId) {
     return false;
   }
 
   const collection = await getCollection<TaskDocument>(COLLECTION_NAME);
-  const { deletedCount } = await collection.deleteOne({ _id: objectId });
+  const { deletedCount } = await collection.deleteOne({ _id: objectId, userId });
   return deletedCount === 1;
 }
 
@@ -111,6 +113,7 @@ function mapTaskDocumentToTask(document: TaskDocument): Task {
     createdAt: document.createdAt.toISOString(),
     updatedAt: document.updatedAt.toISOString(),
     dueDate: document.dueDate ? document.dueDate.toISOString() : null,
+    userId: document.userId,
   };
 }
 

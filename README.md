@@ -26,16 +26,20 @@ A beautiful task management application built with Next.js 14, TypeScript, and T
 1. Install dependencies:
 
 ```bash
-npm install
-# or
 yarn install
+# or
+npm install
 # or
 pnpm install
 ```
 
 2. Configure environment variables:
 
-	- Copy `.env.example` to `.env.local` and update `MONGODB_URI` with your MongoDB connection string.
+	- Copy `.env.example` to `.env.local`.
+	- Update `MONGODB_URI` with your MongoDB connection string.
+	- Add your Clerk keys from the [Clerk dashboard](https://dashboard.clerk.com/last-active?path=api-keys) using the placeholders:
+		- `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=YOUR_PUBLISHABLE_KEY`
+		- `CLERK_SECRET_KEY=YOUR_SECRET_KEY`
 
 3. Run the development server:
 
@@ -84,11 +88,18 @@ The app includes custom Tailwind CSS utilities for glass morphism:
 
 ## Usage
 
-1. **Create a Task:** Click the + button in any column
-2. **Edit a Task:** Click the edit icon on a task card
-3. **View Details:** Click anywhere on a task card
-4. **Delete a Task:** Click the trash icon on a task card
-5. **Organize Tasks:** Tasks are automatically filtered into their respective columns
+1. **Sign in:** Use the header controls to sign in or sign up with Clerk. A signed-in session is required to access tasks.
+2. **Create a Task:** Click the + button in any column
+3. **Edit a Task:** Click the edit icon on a task card
+4. **View Details:** Click anywhere on a task card
+5. **Delete a Task:** Click the trash icon on a task card
+6. **Organize Tasks:** Tasks are automatically filtered into their respective columns
+
+## Authentication
+
+- Clerk protects all API routes and the Kanban board UI. Signed-out visitors see a welcome screen with sign-in options.
+- Tasks are linked to the authenticated Clerk user, ensuring each account only sees and edits its own items.
+- Environment keys live in `.env.local` (ignored by Git). Never commit real secrets to the repository.
 
 ## License
 

@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { auth } from '@clerk/nextjs/server';
 import { deleteTask, findTaskById, updateTask } from '@/lib/tasks';
 import { validateTaskPayload, ValidationError } from '../validation';
 
@@ -9,8 +10,13 @@ type RouteContext = {
 };
 
 export async function GET(_request: Request, context: RouteContext) {
+  const { userId } = await auth();
+  if (!userId) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   try {
-    const task = await findTaskById(context.params.id);
+    const task = await findTaskById(userId, context.params.id);
     if (!task) {
       return NextResponse.json({ error: 'Task not found' }, { status: 404 });
     }
@@ -23,6 +29,11 @@ export async function GET(_request: Request, context: RouteContext) {
 }
 
 export async function PUT(request: Request, context: RouteContext) {
+  const { userId } = await auth();
+  if (!userId) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   let payload: unknown;
 
   try {
@@ -34,7 +45,7 @@ export async function PUT(request: Request, context: RouteContext) {
 
   try {
     const normalizedPayload = validateTaskPayload(payload);
-    const task = await updateTask(context.params.id, normalizedPayload);
+    const task = await updateTask(userId, context.params.id, normalizedPayload);
 
     if (!task) {
       return NextResponse.json({ error: 'Task not found' }, { status: 404 });
@@ -52,13 +63,18 @@ export async function PUT(request: Request, context: RouteContext) {
 }
 
 export async function DELETE(_request: Request, context: RouteContext) {
+  const { userId } = await auth();
+  if (!userId) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   try {
-    const deleted = await deleteTask(context.params.id);
+    const deleted = await deleteTask(userId, context.params.id);
     if (!deleted) {
       return NextResponse.json({ error: 'Task not found' }, { status: 404 });
     }
 
-  return new NextResponse(null, { status: 204 });
+    return new NextResponse(null, { status: 204 });
   } catch (error) {
     console.error('Failed to delete task', error);
     return NextResponse.json({ error: 'Failed to delete task' }, { status: 500 });
