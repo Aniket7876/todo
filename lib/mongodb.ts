@@ -1,11 +1,5 @@
 import { Db, MongoClient, Collection, Document } from 'mongodb';
 
-const uri = process.env.MONGODB_URI;
-
-if (!uri) {
-  throw new Error('Missing MONGODB_URI environment variable');
-}
-
 declare global {
   // eslint-disable-next-line no-var
   var _mongoClientPromise: Promise<MongoClient> | undefined;
@@ -13,21 +7,38 @@ declare global {
 
 const options = {};
 
-let clientPromise: Promise<MongoClient>;
+let clientPromise: Promise<MongoClient> | undefined;
 
-if (process.env.NODE_ENV === 'production') {
-  if (!global._mongoClientPromise) {
-    const client = new MongoClient(uri, options);
-    global._mongoClientPromise = client.connect();
+function createClientPromise(): Promise<MongoClient> {
+  const uri = process.env.MONGODB_URI;
+
+  if (!uri) {
+    throw new Error('Missing MONGODB_URI environment variable');
   }
 
-  clientPromise = global._mongoClientPromise!;
-} else {
   const client = new MongoClient(uri, options);
-  clientPromise = client.connect();
+  return client.connect();
 }
 
 export async function getClient(): Promise<MongoClient> {
+  if (process.env.NODE_ENV === 'production') {
+    if (!global._mongoClientPromise) {
+      global._mongoClientPromise = createClientPromise();
+    }
+
+    const promise = global._mongoClientPromise;
+
+    if (!promise) {
+      throw new Error('Failed to initialize MongoDB client');
+    }
+
+    return promise;
+  }
+
+  if (!clientPromise) {
+    clientPromise = createClientPromise();
+  }
+
   return clientPromise;
 }
 
