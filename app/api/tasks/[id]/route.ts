@@ -1,7 +1,7 @@
-import { NextResponse } from 'next/server';
-import { auth } from '@clerk/nextjs/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { deleteTask, findTaskById, updateTask } from '@/lib/tasks';
 import { validateTaskPayload, ValidationError } from '../validation';
+import { getUserIdFromRequest } from '@/lib/auth';
 
 type RouteContext = {
   params: {
@@ -9,14 +9,14 @@ type RouteContext = {
   };
 };
 
-export async function GET(_request: Request, context: RouteContext) {
-  const { userId } = await auth();
-  if (!userId) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-
+export async function GET(request: NextRequest, context: RouteContext) {
   try {
-    const task = await findTaskById(userId, context.params.id);
+    const userId = getUserIdFromRequest(request);
+    if (!userId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const task = await findTaskById(context.params.id, userId);
     if (!task) {
       return NextResponse.json({ error: 'Task not found' }, { status: 404 });
     }
@@ -28,12 +28,7 @@ export async function GET(_request: Request, context: RouteContext) {
   }
 }
 
-export async function PUT(request: Request, context: RouteContext) {
-  const { userId } = await auth();
-  if (!userId) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-
+export async function PUT(request: NextRequest, context: RouteContext) {
   let payload: unknown;
 
   try {
@@ -45,7 +40,12 @@ export async function PUT(request: Request, context: RouteContext) {
 
   try {
     const normalizedPayload = validateTaskPayload(payload);
-    const task = await updateTask(userId, context.params.id, normalizedPayload);
+    const userId = getUserIdFromRequest(request);
+    if (!userId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const task = await updateTask(context.params.id, normalizedPayload, userId);
 
     if (!task) {
       return NextResponse.json({ error: 'Task not found' }, { status: 404 });
@@ -62,14 +62,14 @@ export async function PUT(request: Request, context: RouteContext) {
   }
 }
 
-export async function DELETE(_request: Request, context: RouteContext) {
-  const { userId } = await auth();
-  if (!userId) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-
+export async function DELETE(request: NextRequest, context: RouteContext) {
   try {
-    const deleted = await deleteTask(userId, context.params.id);
+    const userId = getUserIdFromRequest(request);
+    if (!userId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const deleted = await deleteTask(context.params.id, userId);
     if (!deleted) {
       return NextResponse.json({ error: 'Task not found' }, { status: 404 });
     }

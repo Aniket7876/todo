@@ -6,10 +6,10 @@ export interface Task {
   description: string;
   status: TaskStatus;
   priority: 'low' | 'medium' | 'high';
+  ownerId: string;
   createdAt: string;
   updatedAt: string;
   dueDate?: string | null;
-  userId: string;
 }
 
 export interface Column {

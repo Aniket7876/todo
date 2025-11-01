@@ -141,7 +141,7 @@ export default function KanbanColumn({
         </button>
       </div>
 
-        <div className="relative flex-1 space-y-4 overflow-y-auto pr-1 custom-scrollbar">
+      <div className="relative flex-1 space-y-4 overflow-y-auto pr-1 custom-scrollbar">
         {tasks.length === 0 ? (
           <div className="relative flex flex-col items-center justify-center rounded-2xl border border-dashed border-white/15 bg-white/5 px-6 py-10 text-center text-sm text-white/60">
             <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full border border-white/15 bg-white/8 backdrop-blur">
@@ -158,9 +158,9 @@ export default function KanbanColumn({
               onEdit={onEditTask}
               onDelete={onDeleteTask}
               onViewDetails={onViewDetails}
-                onDragStart={onDragStartTask}
-                onDragEnd={onDragEndTask}
-                isDragging={draggedTaskId === task.id}
+              onDragStart={onDragStartTask}
+              onDragEnd={onDragEndTask}
+              isDragging={draggedTaskId === task.id}
             />
           ))
         )}

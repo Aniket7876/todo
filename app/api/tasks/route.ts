@@ -1,15 +1,15 @@
-import { NextResponse } from 'next/server';
-import { auth } from '@clerk/nextjs/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { createTask, listTasks } from '@/lib/tasks';
 import { validateTaskPayload, ValidationError } from './validation';
+import { getUserIdFromRequest } from '@/lib/auth';
 
-export async function GET() {
-  const { userId } = await auth();
-  if (!userId) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-
+export async function GET(request: NextRequest) {
   try {
+    const userId = getUserIdFromRequest(request);
+    if (!userId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const tasks = await listTasks(userId);
     return NextResponse.json(tasks);
   } catch (error) {
@@ -18,12 +18,7 @@ export async function GET() {
   }
 }
 
-export async function POST(request: Request) {
-  const { userId } = await auth();
-  if (!userId) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-
+export async function POST(request: NextRequest) {
   let payload: unknown;
 
   try {
@@ -35,7 +30,12 @@ export async function POST(request: Request) {
 
   try {
     const normalizedPayload = validateTaskPayload(payload);
-    const task = await createTask(userId, normalizedPayload);
+    const userId = getUserIdFromRequest(request);
+    if (!userId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const task = await createTask(normalizedPayload, userId);
     return NextResponse.json(task, { status: 201 });
   } catch (error) {
     if (error instanceof ValidationError) {

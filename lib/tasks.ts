@@ -12,10 +12,10 @@ interface TaskDocument {
   description: string;
   status: TaskStatus;
   priority: TaskPriority;
+  userId: ObjectId;
   createdAt: Date;
   updatedAt: Date;
   dueDate?: Date | null;
-  userId: string;
 }
 
 export type TaskPayload = {
@@ -27,23 +27,33 @@ export type TaskPayload = {
 };
 
 export async function listTasks(userId: string): Promise<Task[]> {
+  const ownerObjectId = parseObjectId(userId);
+  if (!ownerObjectId) {
+    return [];
+  }
+
   const collection = await getCollection<TaskDocument>(COLLECTION_NAME);
-  const documents = await collection.find({ userId }).sort({ createdAt: 1 }).toArray();
+  const documents = await collection.find({ userId: ownerObjectId }).sort({ createdAt: 1 }).toArray();
   return documents.map(mapTaskDocumentToTask);
 }
 
-export async function findTaskById(userId: string, id: string): Promise<Task | null> {
-  const objectId = parseObjectId(id);
-  if (!objectId) {
+export async function findTaskById(id: string, userId: string): Promise<Task | null> {
+  const [objectId, ownerObjectId] = [parseObjectId(id), parseObjectId(userId)];
+  if (!objectId || !ownerObjectId) {
     return null;
   }
 
   const collection = await getCollection<TaskDocument>(COLLECTION_NAME);
-  const document = await collection.findOne({ _id: objectId, userId });
+  const document = await collection.findOne({ _id: objectId, userId: ownerObjectId });
   return document ? mapTaskDocumentToTask(document) : null;
 }
 
-export async function createTask(userId: string, payload: TaskPayload): Promise<Task> {
+export async function createTask(payload: TaskPayload, userId: string): Promise<Task> {
+  const ownerObjectId = parseObjectId(userId);
+  if (!ownerObjectId) {
+    throw new Error('Invalid user id');
+  }
+
   const collection = await getCollection<TaskDocument>(COLLECTION_NAME);
   const now = new Date();
   const objectId = new ObjectId();
@@ -54,24 +64,24 @@ export async function createTask(userId: string, payload: TaskPayload): Promise<
     description: payload.description.trim(),
     status: payload.status,
     priority: payload.priority,
+    userId: ownerObjectId,
     createdAt: now,
     updatedAt: now,
     dueDate: payload.dueDate ? new Date(payload.dueDate) : null,
-    userId,
   };
 
   await collection.insertOne(document);
   return mapTaskDocumentToTask(document);
 }
 
-export async function updateTask(userId: string, id: string, payload: TaskPayload): Promise<Task | null> {
-  const objectId = parseObjectId(id);
-  if (!objectId) {
+export async function updateTask(id: string, payload: TaskPayload, userId: string): Promise<Task | null> {
+  const [objectId, ownerObjectId] = [parseObjectId(id), parseObjectId(userId)];
+  if (!objectId || !ownerObjectId) {
     return null;
   }
 
   const collection = await getCollection<TaskDocument>(COLLECTION_NAME);
-  const updates: Partial<Omit<TaskDocument, '_id' | 'userId'>> = {
+  const updates: Partial<Omit<TaskDocument, '_id'>> = {
     title: payload.title.trim(),
     description: payload.description.trim(),
     status: payload.status,
@@ -84,7 +94,7 @@ export async function updateTask(userId: string, id: string, payload: TaskPayloa
   }
 
   const updatedDocument = await collection.findOneAndUpdate(
-    { _id: objectId, userId },
+    { _id: objectId, userId: ownerObjectId },
     { $set: updates },
     { returnDocument: 'after' }
   );
@@ -92,14 +102,14 @@ export async function updateTask(userId: string, id: string, payload: TaskPayloa
   return updatedDocument ? mapTaskDocumentToTask(updatedDocument) : null;
 }
 
-export async function deleteTask(userId: string, id: string): Promise<boolean> {
-  const objectId = parseObjectId(id);
-  if (!objectId) {
+export async function deleteTask(id: string, userId: string): Promise<boolean> {
+  const [objectId, ownerObjectId] = [parseObjectId(id), parseObjectId(userId)];
+  if (!objectId || !ownerObjectId) {
     return false;
   }
 
   const collection = await getCollection<TaskDocument>(COLLECTION_NAME);
-  const { deletedCount } = await collection.deleteOne({ _id: objectId, userId });
+  const { deletedCount } = await collection.deleteOne({ _id: objectId, userId: ownerObjectId });
   return deletedCount === 1;
 }
 
@@ -110,10 +120,10 @@ function mapTaskDocumentToTask(document: TaskDocument): Task {
     description: document.description,
     status: document.status,
     priority: document.priority,
+    ownerId: document.userId.toHexString(),
     createdAt: document.createdAt.toISOString(),
     updatedAt: document.updatedAt.toISOString(),
     dueDate: document.dueDate ? document.dueDate.toISOString() : null,
-    userId: document.userId,
   };
 }
 

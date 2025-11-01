@@ -12,6 +12,7 @@ A beautiful task management application built with Next.js 14, TypeScript, and T
 - 📅 **Due Dates** - Set optional due dates for tasks
 - 🗄️ **Persistent Storage** - MongoDB-backed API keeps tasks in sync across sessions
 - 🧲 **Drag & Drop** - Move tasks between stages with smooth drag interactions
+- 🔐 **Email & Username Auth** - Built-in signup, login, and logout with JWT-secured sessions
 - 🎯 **Responsive Design** - Works beautifully on all screen sizes
 
 ## Getting Started
@@ -37,9 +38,7 @@ pnpm install
 
 	- Copy `.env.example` to `.env.local`.
 	- Update `MONGODB_URI` with your MongoDB connection string.
-	- Add your Clerk keys from the [Clerk dashboard](https://dashboard.clerk.com/last-active?path=api-keys) using the placeholders:
-		- `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=YOUR_PUBLISHABLE_KEY`
-		- `CLERK_SECRET_KEY=YOUR_SECRET_KEY`
+	- Set `JWT_SECRET` to a long random string (this signs user session tokens).
 
 3. Run the development server:
 
@@ -88,7 +87,7 @@ The app includes custom Tailwind CSS utilities for glass morphism:
 
 ## Usage
 
-1. **Sign in:** Use the header controls to sign in or sign up with Clerk. A signed-in session is required to access tasks.
+1. **Sign up or sign in:** Visit `/signup` or `/login` to create an account or access your workspace. Sessions are stored in HTTP-only JWT cookies.
 2. **Create a Task:** Click the + button in any column
 3. **Edit a Task:** Click the edit icon on a task card
 4. **View Details:** Click anywhere on a task card
@@ -97,8 +96,9 @@ The app includes custom Tailwind CSS utilities for glass morphism:
 
 ## Authentication
 
-- Clerk protects all API routes and the Kanban board UI. Signed-out visitors see a welcome screen with sign-in options.
-- Tasks are linked to the authenticated Clerk user, ensuring each account only sees and edits its own items.
+- Accounts capture a username, email, and password. Passwords are hashed with bcrypt before storage.
+- Users can sign in with either their username or email. Successful sign-in issues a JWT stored in an HTTP-only cookie.
+- All task routes require a valid session token. Each task is scoped to the authenticated user, so every account maintains a private board.
 - Environment keys live in `.env.local` (ignored by Git). Never commit real secrets to the repository.
 
 ## License

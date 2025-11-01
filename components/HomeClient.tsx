@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { useAuth } from "@clerk/nextjs";
+import { useRouter } from "next/navigation";
 import { Activity, CheckCircle2, Flame, PlusCircle, Sparkles } from "lucide-react";
 import { Column, Task, TaskStatus } from "@/types/task";
+import type { User } from "@/types/user";
 import KanbanColumn from "@/components/KanbanColumn";
 import TaskDetailsModal from "@/components/TaskDetailsModal";
 import TaskModal from "@/components/TaskModal";
@@ -22,9 +23,9 @@ type StatCard = {
 type HomeClientProps = {
   initialTasks: Task[];
   initialError?: string | null;
+  currentUser: User;
 };
-
-export default function HomeClient({ initialTasks, initialError = null }: HomeClientProps) {
+export default function HomeClient({ initialTasks, initialError = null, currentUser }: HomeClientProps) {
   const [tasks, setTasks] = useState<Task[]>(initialTasks);
   const [isLoading, setIsLoading] = useState(initialTasks.length === 0 && !initialError);
   const [error, setError] = useState<string | null>(initialError);
@@ -34,21 +35,10 @@ export default function HomeClient({ initialTasks, initialError = null }: HomeCl
   const [defaultStatus, setDefaultStatus] = useState<TaskStatus>("todo");
   const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
   const [dragOverStatus, setDragOverStatus] = useState<TaskStatus | null>(null);
-  const { isLoaded, isSignedIn } = useAuth();
   const hasPrefetched = useRef(initialTasks.length > 0 && !initialError);
+  const router = useRouter();
 
   useEffect(() => {
-    if (!isLoaded) {
-      return;
-    }
-
-    if (!isSignedIn) {
-      setTasks([]);
-      setError(null);
-      setIsLoading(false);
-      return;
-    }
-
     if (hasPrefetched.current) {
       hasPrefetched.current = false;
       setIsLoading(false);
@@ -87,7 +77,7 @@ export default function HomeClient({ initialTasks, initialError = null }: HomeCl
     return () => {
       isCancelled = true;
     };
-  }, [isLoaded, isSignedIn]);
+  }, []);
 
   const columns = useMemo<Column[]>(
     () => [
@@ -299,6 +289,24 @@ export default function HomeClient({ initialTasks, initialError = null }: HomeCl
     }
   };
 
+  const handleLogout = async () => {
+    try {
+      const response = await fetch("/api/auth/logout", {
+        method: "POST",
+      });
+
+      if (!response.ok && response.status !== 204) {
+        throw new Error("Failed to log out");
+      }
+
+      router.push("/login");
+      router.refresh();
+    } catch (err) {
+      console.error("Error logging out", err);
+      setError("We could not log you out. Please try again.");
+    }
+  };
+
   return (
     <main className="relative min-h-screen overflow-hidden px-4 pb-24 pt-24 md:px-10">
       <div className="pointer-events-none absolute inset-0 -z-0">
@@ -343,6 +351,15 @@ export default function HomeClient({ initialTasks, initialError = null }: HomeCl
               <div className="flex items-center gap-3 rounded-full border border-white/10 bg-white/5 px-5 py-3 text-xs text-white/60 backdrop-blur">
                 <Flame className="h-4 w-4 text-orange-300" />
                 {todoCount} awaiting spark
+              </div>
+              <div className="flex items-center gap-3 rounded-full border border-white/10 bg-white/5 px-5 py-3 text-xs text-white/70 backdrop-blur">
+                <span className="font-semibold text-white">{currentUser.username}</span>
+                <button
+                  onClick={handleLogout}
+                  className="rounded-full border border-white/20 px-3 py-1 text-xs font-medium text-white/80 transition-colors duration-200 hover:border-white/40 hover:text-white"
+                >
+                  Log out
+                </button>
               </div>
             </div>
           </div>
