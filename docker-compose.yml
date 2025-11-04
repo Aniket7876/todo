@@ -1,21 +1,19 @@
-version: '3.8'
+version: '3.9'
 
 services:
-  nextjs-app:
+  app:
+    container_name: nextjs-app
     build:
       context: .
       dockerfile: Dockerfile
-      args:
-        # Build-time variables - reference from .env
-        MONGODB_URI: ${MONGODB_URI}
-        JWT_SECRET: ${JWT_SECRET}
-        NODE_ENV: ${NODE_ENV}
+
+    # Map port from container to host
     ports:
       - "3000:3000"
-    environment:
-      # Runtime server-side variables - reference from .env
-      - NODE_ENV=production
-      - MONGODB_URI=${MONGODB_URI}
-      - JWT_SECRET=${JWT_SECRET}
+
+    # Load environment variables
+    env_file: 
+      - .env
+
+    # Always restart unless manually stopped
     restart: unless-stopped
-    container_name: nextjs-app
